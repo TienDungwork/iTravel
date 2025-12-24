@@ -1,9 +1,12 @@
 'use client';
 
 import { useState } from 'react';
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Sparkles, Wallet, Calendar, Users, Heart, Mountain, Building, Waves, Info, MapPin, Clock, ArrowRight, Check } from 'lucide-react';
+import { useToast } from '@/components/ui/Toast';
 
 interface ItineraryItem {
     day: number;
@@ -36,6 +39,9 @@ const preferenceOptions = [
 ];
 
 export default function ItineraryPage() {
+    const { data: session } = useSession();
+    const router = useRouter();
+    const { showToast } = useToast();
     const [step, setStep] = useState(1);
     const [budget, setBudget] = useState(3000000);
     const [days, setDays] = useState(3);
@@ -44,6 +50,7 @@ export default function ItineraryPage() {
     const [loading, setLoading] = useState(false);
     const [result, setResult] = useState<ItineraryResult | null>(null);
     const [error, setError] = useState('');
+    const [isSaved, setIsSaved] = useState(false);
 
     const togglePreference = (id: string) => {
         setPreferences(prev =>
@@ -104,8 +111,8 @@ export default function ItineraryPage() {
                         {[1, 2, 3, 4].map((s) => (
                             <div key={s} className="flex items-center">
                                 <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold ${s === step ? 'bg-emerald-600 text-white' :
-                                        s < step ? 'bg-emerald-100 text-emerald-600' :
-                                            'bg-gray-200 text-gray-400'
+                                    s < step ? 'bg-emerald-100 text-emerald-600' :
+                                        'bg-gray-200 text-gray-400'
                                     }`}>
                                     {s < step ? <Check className="w-5 h-5" /> : s}
                                 </div>
@@ -175,8 +182,8 @@ export default function ItineraryPage() {
                                     key={d}
                                     onClick={() => setDays(d)}
                                     className={`w-16 h-16 rounded-2xl font-bold text-lg transition-all ${days === d
-                                            ? 'bg-emerald-600 text-white shadow-lg scale-110'
-                                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                        ? 'bg-emerald-600 text-white shadow-lg scale-110'
+                                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                                         }`}
                                 >
                                     {d}
@@ -261,8 +268,8 @@ export default function ItineraryPage() {
                                     key={pref.id}
                                     onClick={() => togglePreference(pref.id)}
                                     className={`p-4 rounded-2xl border-2 transition-all ${preferences.includes(pref.id)
-                                            ? `${pref.color} border-current`
-                                            : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-gray-300'
+                                        ? `${pref.color} border-current`
+                                        : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-gray-300'
                                         }`}
                                 >
                                     <pref.icon className="w-8 h-8 mx-auto mb-2" />
@@ -306,116 +313,238 @@ export default function ItineraryPage() {
                 {/* Step 5: Result */}
                 {step === 5 && result && (
                     <div className="animate-fade-in">
-                        <div className="bg-white rounded-3xl p-8 shadow-xl mb-8">
-                            <div className="flex items-center gap-3 mb-6">
-                                <Sparkles className="w-8 h-8 text-yellow-500" />
-                                <h2 className="text-2xl font-bold text-gray-900">{result.title}</h2>
+                        {/* Header Card */}
+                        <div className="bg-gradient-to-r from-emerald-600 to-teal-600 rounded-3xl p-8 text-white mb-8">
+                            <div className="flex items-center gap-3 mb-4">
+                                <Sparkles className="w-8 h-8 text-yellow-300" />
+                                <h2 className="text-2xl font-bold">{result.title}</h2>
                             </div>
+                            <p className="text-emerald-100 mb-6">Lịch trình được tạo bởi AI dựa trên sở thích và ngân sách của bạn</p>
 
-                            <div className="grid grid-cols-3 gap-4 p-4 bg-emerald-50 rounded-2xl mb-8">
+                            <div className="grid grid-cols-4 gap-4 p-4 bg-white/10 backdrop-blur-sm rounded-2xl">
                                 <div className="text-center">
-                                    <p className="text-sm text-gray-500">Ngân sách</p>
-                                    <p className="font-bold text-emerald-600">{formatPrice(budget)}đ</p>
+                                    <p className="text-sm text-emerald-100">Ngân sách</p>
+                                    <p className="font-bold text-lg">{formatPrice(budget)}đ</p>
                                 </div>
-                                <div className="text-center border-x border-emerald-200">
-                                    <p className="text-sm text-gray-500">Thời gian</p>
-                                    <p className="font-bold text-emerald-600">{days} ngày</p>
+                                <div className="text-center border-x border-white/20">
+                                    <p className="text-sm text-emerald-100">Thời gian</p>
+                                    <p className="font-bold text-lg">{days} ngày {days - 1} đêm</p>
+                                </div>
+                                <div className="text-center border-r border-white/20">
+                                    <p className="text-sm text-emerald-100">Số người</p>
+                                    <p className="font-bold text-lg">{travelers} người</p>
                                 </div>
                                 <div className="text-center">
-                                    <p className="text-sm text-gray-500">Số người</p>
-                                    <p className="font-bold text-emerald-600">{travelers} người</p>
-                                </div>
-                            </div>
-
-                            {/* Timeline */}
-                            <div className="space-y-6">
-                                {result.items.map((item, index) => (
-                                    <div key={index} className="flex gap-4">
-                                        <div className="flex-shrink-0">
-                                            <div className="w-12 h-12 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold">
-                                                {item.day}
-                                            </div>
-                                            {index < result.items.length - 1 && (
-                                                <div className="w-0.5 h-16 bg-emerald-200 mx-auto mt-2" />
-                                            )}
-                                        </div>
-                                        <div className="flex-1 bg-gray-50 rounded-2xl p-4">
-                                            <Link
-                                                href={`/destinations/${item.destination.slug}`}
-                                                className="flex gap-4 hover:bg-white rounded-xl transition-colors p-2 -m-2"
-                                            >
-                                                <div className="relative w-24 h-24 rounded-xl overflow-hidden flex-shrink-0">
-                                                    <Image
-                                                        src={item.destination.images[0] || '/images/placeholder.jpg'}
-                                                        alt={item.destination.name}
-                                                        fill
-                                                        className="object-cover"
-                                                    />
-                                                </div>
-                                                <div className="flex-1">
-                                                    <h3 className="font-bold text-gray-900 hover:text-emerald-600 transition-colors">
-                                                        {item.destination.name}
-                                                    </h3>
-                                                    {item.destination.provinceId && (
-                                                        <div className="flex items-center gap-1 text-gray-500 text-sm mt-1">
-                                                            <MapPin className="w-4 h-4" />
-                                                            <span>{item.destination.provinceId.name}</span>
-                                                        </div>
-                                                    )}
-                                                    <div className="flex items-center gap-1 text-gray-500 text-sm mt-1">
-                                                        <Clock className="w-4 h-4" />
-                                                        <span>{item.duration}</span>
-                                                    </div>
-                                                    <p className="text-emerald-600 font-semibold mt-2">
-                                                        ~{formatPrice((item.destination.priceRange.min + item.destination.priceRange.max) / 2)}đ
-                                                    </p>
-                                                </div>
-                                            </Link>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-
-                            {/* Total */}
-                            <div className="mt-8 p-4 bg-gradient-to-r from-emerald-600 to-teal-600 rounded-2xl text-white">
-                                <div className="flex items-center justify-between">
-                                    <span className="text-emerald-100">Tổng chi phí ước tính:</span>
-                                    <span className="text-2xl font-bold">{formatPrice(result.totalEstimatedCost)}đ</span>
+                                    <p className="text-sm text-emerald-100">Địa điểm</p>
+                                    <p className="font-bold text-lg">{result.items.length} nơi</p>
                                 </div>
                             </div>
                         </div>
 
-                        {/* Tips */}
-                        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6">
-                            <div className="flex items-start gap-3">
-                                <Info className="w-6 h-6 text-amber-600 flex-shrink-0 mt-1" />
-                                <div>
-                                    <h3 className="font-semibold text-amber-800 mb-2">Mẹo du lịch</h3>
-                                    <ul className="space-y-1 text-amber-700 text-sm">
-                                        {result.tips.map((tip, index) => (
-                                            <li key={index}>• {tip}</li>
-                                        ))}
-                                    </ul>
+                        {/* Timeline */}
+                        <div className="bg-white rounded-3xl p-8 shadow-xl mb-8">
+                            <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+                                <Calendar className="w-6 h-6 text-emerald-600" />
+                                Lịch trình chi tiết
+                            </h3>
+
+                            <div className="space-y-8">
+                                {result.items.map((item, index) => (
+                                    <div key={index} className="relative">
+                                        {/* Day Header */}
+                                        <div className="flex items-center gap-4 mb-4">
+                                            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-500 text-white flex flex-col items-center justify-center shadow-lg">
+                                                <span className="text-xs font-medium">NGÀY</span>
+                                                <span className="text-xl font-bold">{item.day}</span>
+                                            </div>
+                                            <div>
+                                                <h4 className="font-bold text-lg text-gray-900">{item.destination.name}</h4>
+                                                {item.destination.provinceId && (
+                                                    <p className="text-gray-500 flex items-center gap-1">
+                                                        <MapPin className="w-4 h-4" />
+                                                        {item.destination.provinceId.name}
+                                                    </p>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* Destination Card */}
+                                        <div className="ml-[4.5rem] bg-gray-50 rounded-2xl overflow-hidden border border-gray-100">
+                                            <div className="flex flex-col md:flex-row">
+                                                {/* Image */}
+                                                <Link href={`/destinations/${item.destination.slug}`} className="relative w-full md:w-64 h-48 flex-shrink-0">
+                                                    <Image
+                                                        src={item.destination.images[0] || 'https://images.unsplash.com/photo-1528127269322-539801943592?w=800'}
+                                                        alt={item.destination.name}
+                                                        fill
+                                                        className="object-cover hover:scale-105 transition-transform"
+                                                    />
+                                                </Link>
+
+                                                {/* Content */}
+                                                <div className="p-6 flex-1">
+                                                    <div className="flex items-start justify-between mb-4">
+                                                        <div>
+                                                            <Link href={`/destinations/${item.destination.slug}`} className="font-bold text-xl text-gray-900 hover:text-emerald-600 transition-colors">
+                                                                {item.destination.name}
+                                                            </Link>
+                                                            <p className="text-gray-500 mt-1">{item.destination.shortDescription}</p>
+                                                        </div>
+                                                        <div className="text-right">
+                                                            <p className="text-sm text-gray-400">Chi phí ước tính</p>
+                                                            <p className="font-bold text-emerald-600">
+                                                                {formatPrice((item.destination.priceRange.min + item.destination.priceRange.max) / 2)}đ
+                                                            </p>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Timeline of day */}
+                                                    <div className="bg-white rounded-xl p-4 mb-4">
+                                                        <div className="flex items-center gap-2 text-gray-600 mb-2">
+                                                            <Clock className="w-4 h-4" />
+                                                            <span className="font-medium">Lịch trình trong ngày</span>
+                                                        </div>
+                                                        <div className="text-sm text-gray-600 space-y-1">
+                                                            <p>🌅 <span className="font-medium">Sáng:</span> Di chuyển và check-in, tham quan khu vực xung quanh</p>
+                                                            <p>🌞 <span className="font-medium">Trưa:</span> Thưởng thức ẩm thực địa phương</p>
+                                                            <p>🌄 <span className="font-medium">Chiều:</span> Khám phá các điểm tham quan chính</p>
+                                                            <p>🌙 <span className="font-medium">Tối:</span> Dạo chơi, mua sắm và nghỉ ngơi</p>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Notes */}
+                                                    {item.notes && (
+                                                        <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-xl">
+                                                            <Info className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                                                            <div>
+                                                                <p className="font-medium text-amber-800">Gợi ý từ AI:</p>
+                                                                <p className="text-amber-700 text-sm">{item.notes}</p>
+                                                            </div>
+                                                        </div>
+                                                    )}
+
+                                                    {/* Quick Info */}
+                                                    <div className="flex items-center gap-4 mt-4 text-sm text-gray-500">
+                                                        <span className="flex items-center gap-1">
+                                                            <Clock className="w-4 h-4" />
+                                                            {item.duration}
+                                                        </span>
+                                                        <Link href={`/destinations/${item.destination.slug}`} className="text-emerald-600 hover:underline font-medium">
+                                                            Xem chi tiết →
+                                                        </Link>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Connector Line */}
+                                        {index < result.items.length - 1 && (
+                                            <div className="absolute left-7 top-20 bottom-0 w-0.5 bg-gradient-to-b from-emerald-300 to-emerald-100" />
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Summary Card */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                            {/* Cost Summary */}
+                            <div className="bg-white rounded-2xl p-6 shadow-lg">
+                                <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+                                    <Wallet className="w-5 h-5 text-emerald-600" />
+                                    Ước tính chi phí
+                                </h3>
+                                <div className="space-y-3">
+                                    {result.items.map((item, index) => (
+                                        <div key={index} className="flex justify-between items-center py-2 border-b border-gray-100">
+                                            <span className="text-gray-600">Ngày {item.day}: {item.destination.name}</span>
+                                            <span className="font-semibold">{formatPrice((item.destination.priceRange.min + item.destination.priceRange.max) / 2)}đ</span>
+                                        </div>
+                                    ))}
+                                    <div className="flex justify-between items-center pt-3 text-lg">
+                                        <span className="font-bold text-gray-900">Tổng cộng</span>
+                                        <span className="font-bold text-emerald-600">{formatPrice(result.totalEstimatedCost)}đ</span>
+                                    </div>
+                                    <p className="text-sm text-gray-400 mt-2">* Chi phí có thể thay đổi tùy theo thời điểm và lựa chọn dịch vụ</p>
                                 </div>
+                            </div>
+
+                            {/* Tips */}
+                            <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl p-6 border border-amber-200">
+                                <h3 className="font-bold text-amber-800 mb-4 flex items-center gap-2">
+                                    <Info className="w-5 h-5" />
+                                    Mẹo du lịch từ AI
+                                </h3>
+                                <ul className="space-y-3">
+                                    {result.tips.map((tip, index) => (
+                                        <li key={index} className="flex items-start gap-2 text-amber-700">
+                                            <span className="text-amber-500 font-bold">{index + 1}.</span>
+                                            <span>{tip}</span>
+                                        </li>
+                                    ))}
+                                </ul>
                             </div>
                         </div>
 
                         {/* Actions */}
-                        <div className="flex justify-center gap-4 mt-8">
+                        <div className="flex flex-col sm:flex-row justify-center gap-4">
                             <button
                                 onClick={() => {
                                     setStep(1);
                                     setResult(null);
                                 }}
-                                className="px-6 py-3 border border-emerald-600 text-emerald-600 rounded-full font-semibold hover:bg-emerald-50 transition-colors"
+                                className="px-8 py-4 border-2 border-emerald-600 text-emerald-600 rounded-full font-semibold hover:bg-emerald-50 transition-colors flex items-center justify-center gap-2"
                             >
+                                <ArrowRight className="w-5 h-5 rotate-180" />
                                 Tạo lịch trình mới
+                            </button>
+                            <button
+                                onClick={async () => {
+                                    if (!session) {
+                                        showToast('info', 'Vui lòng đăng nhập để lưu lịch trình!');
+                                        router.push('/auth/login');
+                                        return;
+                                    }
+                                    try {
+                                        const res = await fetch('/api/user/itineraries', {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({ itineraryId: result._id }),
+                                        });
+                                        if (res.ok) {
+                                            setIsSaved(true);
+                                            showToast('success', 'Đã lưu lịch trình vào tài khoản!');
+                                        } else {
+                                            showToast('error', 'Không thể lưu lịch trình!');
+                                        }
+                                    } catch {
+                                        showToast('error', 'Có lỗi xảy ra, vui lòng thử lại!');
+                                    }
+                                }}
+                                disabled={isSaved}
+                                className={`px-8 py-4 rounded-full font-semibold transition-all flex items-center justify-center gap-2 shadow-lg ${isSaved
+                                        ? 'bg-emerald-50 text-emerald-600 border-2 border-emerald-200'
+                                        : 'bg-gradient-to-r from-emerald-600 to-teal-500 text-white hover:from-emerald-700 hover:to-teal-600'
+                                    }`}
+                            >
+                                {isSaved ? (
+                                    <>
+                                        <Check className="w-5 h-5" />
+                                        Đã lưu lịch trình
+                                    </>
+                                ) : (
+                                    <>
+                                        <Heart className="w-5 h-5" />
+                                        Lưu lịch trình
+                                    </>
+                                )}
                             </button>
                             <Link
                                 href="/destinations"
-                                className="px-6 py-3 bg-emerald-600 text-white rounded-full font-semibold hover:bg-emerald-700 transition-colors"
+                                className="px-8 py-4 bg-gray-900 text-white rounded-full font-semibold hover:bg-gray-800 transition-colors flex items-center justify-center gap-2"
                             >
                                 Khám phá thêm
+                                <ArrowRight className="w-5 h-5" />
                             </Link>
                         </div>
                     </div>

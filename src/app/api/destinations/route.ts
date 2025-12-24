@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
-import { Destination } from '@/models';
+import { Destination, Category, Province } from '@/models';
 
 export async function GET(request: NextRequest) {
     try {
@@ -17,17 +17,36 @@ export async function GET(request: NextRequest) {
         // Build query
         const query: Record<string, unknown> = { isActive: true };
 
+        // If category is provided, look up by slug first
         if (category) {
-            query.categoryId = category;
+            const cat = await Category.findOne({ slug: category }).lean();
+            if (cat) {
+                query.categoryId = cat._id;
+            } else {
+                // Try as ObjectId if not a slug
+                query.categoryId = category;
+            }
         }
+
+        // If province is provided, look up by code first
         if (province) {
-            query.provinceId = province;
+            const prov = await Province.findOne({ code: province }).lean();
+            if (prov) {
+                query.provinceId = prov._id;
+            } else {
+                query.provinceId = province;
+            }
         }
+
         if (featured === 'true') {
             query.isFeatured = true;
         }
+
         if (search) {
-            query.$text = { $search: search };
+            query.$or = [
+                { name: { $regex: search, $options: 'i' } },
+                { description: { $regex: search, $options: 'i' } },
+            ];
         }
 
         const skip = (page - 1) * limit;

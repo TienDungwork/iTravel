@@ -1,9 +1,13 @@
 'use client';
 
 import { useState, useEffect, use } from 'react';
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
-import { MapPin, Star, Clock, Calendar, DollarSign, Heart, Share2, ArrowLeft, Check } from 'lucide-react';
+import { MapPin, Star, Clock, Calendar, DollarSign, Heart, Share2, ArrowLeft, Check, Plus } from 'lucide-react';
+import { ReviewsSection } from '@/components/destination';
+import { useToast } from '@/components/ui/Toast';
 
 interface Destination {
     _id: string;
@@ -33,11 +37,15 @@ export default function DestinationDetailPage({
     params: Promise<{ slug: string }>;
 }) {
     const { slug } = use(params);
+    const { data: session } = useSession();
+    const router = useRouter();
+    const { showToast } = useToast();
     const [destination, setDestination] = useState<Destination | null>(null);
     const [related, setRelated] = useState<Destination[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedImage, setSelectedImage] = useState(0);
     const [isFavorite, setIsFavorite] = useState(false);
+    const [isAdded, setIsAdded] = useState(false);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -58,8 +66,67 @@ export default function DestinationDetailPage({
         fetchData();
     }, [slug]);
 
+    // Fetch user favorites to check if this destination is favorited
+    useEffect(() => {
+        const fetchFavorites = async () => {
+            // Wait for both session and destination to be loaded
+            if (!session || !destination) {
+                console.log('Favorites check: waiting...', { session: !!session, destination: !!destination });
+                return;
+            }
+
+            console.log('Fetching favorites for destination:', destination._id);
+
+            try {
+                const res = await fetch('/api/favorites');
+                if (res.ok) {
+                    const data = await res.json();
+                    console.log('Favorites data:', data);
+
+                    if (data.success && data.data) {
+                        const isFav = data.data.some((fav: { _id: string }) => fav._id === destination._id);
+                        console.log('Is favorited:', isFav);
+                        setIsFavorite(isFav);
+                    }
+                } else {
+                    console.log('Favorites API error:', res.status);
+                }
+            } catch (error) {
+                console.error('Error fetching favorites:', error);
+            }
+        };
+        fetchFavorites();
+    }, [session, destination]);
+
     const formatPrice = (price: number) => {
         return new Intl.NumberFormat('vi-VN').format(price);
+    };
+
+    const handleFavoriteClick = async () => {
+        if (!session) {
+            showToast('info', 'Vui lòng đăng nhập để thêm yêu thích!');
+            router.push('/auth/login');
+            return;
+        }
+        if (!destination) return;
+
+        try {
+            const res = await fetch('/api/favorites', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ destinationId: destination._id }),
+            });
+
+            if (res.ok) {
+                const newState = !isFavorite;
+                setIsFavorite(newState);
+                showToast('success', newState ? 'Đã thêm vào yêu thích!' : 'Đã xóa khỏi yêu thích!');
+            } else {
+                showToast('error', 'Có lỗi xảy ra!');
+            }
+        } catch {
+            showToast('error', 'Có lỗi xảy ra!');
+        }
     };
 
     if (loading) {
@@ -114,9 +181,10 @@ export default function DestinationDetailPage({
                     {/* Main Image */}
                     <div className="lg:col-span-2 relative h-96 lg:h-[500px] rounded-3xl overflow-hidden">
                         <Image
-                            src={destination.images[selectedImage] || 'https://images.unsplash.com/photo-1528127269322-539801943592?w=800'}
+                            src={destination.images[selectedImage] || '/images/placeholder.svg'}
                             alt={destination.name}
                             fill
+                            sizes="(max-width: 1024px) 100vw, 66vw"
                             className="object-cover"
                             priority
                         />
@@ -125,7 +193,7 @@ export default function DestinationDetailPage({
                         {/* Actions */}
                         <div className="absolute top-4 right-4 flex gap-2">
                             <button
-                                onClick={() => setIsFavorite(!isFavorite)}
+                                onClick={handleFavoriteClick}
                                 className={`p-3 rounded-full backdrop-blur-sm transition-colors ${isFavorite ? 'bg-red-500 text-white' : 'bg-white/90 text-gray-700 hover:text-red-500'
                                     }`}
                             >
@@ -139,14 +207,14 @@ export default function DestinationDetailPage({
 
                     {/* Thumbnails */}
                     <div className="grid grid-cols-3 lg:grid-cols-1 gap-2">
-                        {(destination.images.length > 0 ? destination.images : ['https://images.unsplash.com/photo-1528127269322-539801943592?w=400']).slice(0, 3).map((img, index) => (
+                        {(destination.images.length > 0 ? destination.images : ['/images/placeholder.svg']).slice(0, 3).map((img, index) => (
                             <button
                                 key={index}
                                 onClick={() => setSelectedImage(index)}
                                 className={`relative h-24 lg:h-40 rounded-xl overflow-hidden transition-all ${selectedImage === index ? 'ring-4 ring-emerald-500' : 'opacity-70 hover:opacity-100'
                                     }`}
                             >
-                                <Image src={img} alt={`${destination.name} ${index + 1}`} fill className="object-cover" />
+                                <Image src={img} alt={`${destination.name} ${index + 1}`} fill sizes="200px" className="object-cover" />
                             </button>
                         ))}
                     </div>
@@ -241,6 +309,12 @@ export default function DestinationDetailPage({
                                 </div>
                             </div>
                         )}
+
+                        {/* Reviews Section */}
+                        <ReviewsSection
+                            destinationId={destination._id}
+                            destinationName={destination.name}
+                        />
                     </div>
 
                     {/* Sidebar */}
@@ -255,18 +329,74 @@ export default function DestinationDetailPage({
                                 <p className="text-sm text-gray-400 mt-1">/người</p>
                             </div>
 
-                            <Link
-                                href={`/itinerary?destination=${destination.slug}`}
-                                className="block w-full py-3 bg-gradient-to-r from-emerald-600 to-teal-500 text-white text-center rounded-xl font-semibold hover:from-emerald-700 hover:to-teal-600 transition-all"
-                            >
-                                Thêm vào lịch trình
-                            </Link>
-
+                            {/* Add to Trip Button */}
                             <button
-                                onClick={() => setIsFavorite(!isFavorite)}
+                                onClick={async () => {
+                                    if (!session) {
+                                        showToast('info', 'Vui lòng đăng nhập để thêm vào lịch trình!');
+                                        router.push('/auth/login');
+                                        return;
+                                    }
+                                    try {
+                                        const res = await fetch('/api/trips', {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({ destinationId: destination._id }),
+                                        });
+                                        const data = await res.json();
+                                        if (data.success) {
+                                            setIsAdded(true);
+                                            showToast('success', `Đã thêm ${destination.name} vào lịch trình!`);
+                                        }
+                                    } catch {
+                                        showToast('error', 'Có lỗi xảy ra, vui lòng thử lại!');
+                                    }
+                                }}
+                                disabled={isAdded}
+                                className={`w-full py-3 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 ${isAdded
+                                    ? 'bg-emerald-50 text-emerald-600 border border-emerald-200'
+                                    : 'bg-gradient-to-r from-emerald-600 to-teal-500 text-white hover:from-emerald-700 hover:to-teal-600'
+                                    }`}
+                            >
+                                {isAdded ? (
+                                    <>
+                                        <Check className="w-5 h-5" />
+                                        Đã thêm vào lịch trình
+                                    </>
+                                ) : (
+                                    <>
+                                        <Plus className="w-5 h-5" />
+                                        Thêm vào lịch trình
+                                    </>
+                                )}
+                            </button>
+
+                            {/* Add to Favorites Button */}
+                            <button
+                                onClick={async () => {
+                                    if (!session) {
+                                        showToast('info', 'Vui lòng đăng nhập để lưu yêu thích!');
+                                        router.push('/auth/login');
+                                        return;
+                                    }
+                                    try {
+                                        const res = await fetch('/api/favorites', {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({ destinationId: destination._id }),
+                                        });
+                                        if (res.ok) {
+                                            const newState = !isFavorite;
+                                            setIsFavorite(newState);
+                                            showToast('success', newState ? 'Đã thêm vào yêu thích!' : 'Đã xóa khỏi yêu thích!');
+                                        }
+                                    } catch {
+                                        showToast('error', 'Có lỗi xảy ra, vui lòng thử lại!');
+                                    }
+                                }}
                                 className={`w-full mt-3 py-3 rounded-xl font-semibold transition-colors flex items-center justify-center gap-2 ${isFavorite
-                                        ? 'bg-red-50 text-red-600 border border-red-200'
-                                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                    ? 'bg-red-50 text-red-600 border border-red-200'
+                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                                     }`}
                             >
                                 <Heart className={`w-5 h-5 ${isFavorite ? 'fill-red-600' : ''}`} />

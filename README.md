@@ -1,36 +1,89 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# iTravel - Website Du lịch Thông minh
 
-## Getting Started
+Website quảng bá du lịch địa phương và hỗ trợ lựa chọn lịch trình du lịch thông minh với AI.
 
-First, run the development server:
+## 🚀 Quick Start
 
+### 1. Cài đặt dependencies
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2. Khởi động MongoDB (Docker)
+```bash
+docker compose up -d
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 3. Tạo file .env.local
+```bash
+MONGODB_URI=mongodb://localhost:27017/itravel
+NEXTAUTH_SECRET=your-secret-key-change-in-production
+NEXTAUTH_URL=http://localhost:3000
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### 4. Chạy development server
+```bash
+npm run dev
+```
 
-## Learn More
+### 5. Seed database
+Truy cập http://localhost:3000/admin → Click "Khởi tạo dữ liệu mẫu"
 
-To learn more about Next.js, take a look at the following resources:
+## 📱 Demo Accounts
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+| Role | Email | Password |
+|------|-------|----------|
+| Admin | admin@itravel.vn | 123456 |
+| User | user@itravel.vn | 123456 |
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 🛠️ Tech Stack
 
-## Deploy on Vercel
+- **Framework**: Next.js 16 (App Router)
+- **Language**: TypeScript
+- **Database**: MongoDB
+- **Auth**: NextAuth.js
+- **Styling**: Tailwind CSS
+- **Icons**: Lucide React
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 📁 Project Structure
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```
+src/
+├── app/                # Next.js pages & API routes
+│   ├── api/           # Backend APIs
+│   ├── auth/          # Login/Register pages
+│   ├── admin/         # Admin dashboard
+│   ├── destinations/  # Destinations pages
+│   └── itinerary/     # AI itinerary page
+├── components/        # React components
+├── models/           # MongoDB schemas
+└── lib/              # Utilities
+```
+
+## 🔗 API Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/destinations` | GET | List destinations |
+| `/api/destinations/[slug]` | GET | Destination detail |
+| `/api/categories` | GET | List categories |
+| `/api/provinces` | GET | List provinces |
+| `/api/reviews` | GET/POST | Reviews CRUD |
+| `/api/favorites` | GET/POST | Favorites toggle |
+| `/api/itinerary/generate` | POST | AI itinerary |
+| `/api/seed` | POST | Seed database |
+
+## ✨ Features
+
+- ✅ Homepage với hero section, categories, featured destinations
+- ✅ Destinations list với filter & search
+- ✅ Destination detail với gallery, reviews
+- ✅ AI Itinerary generator
+- ✅ User authentication (login/register)
+- ✅ Favorites functionality
+- ✅ Reviews system
+- ✅ Admin dashboard
+
+## 📝 License
+
+MIT

@@ -1,6 +1,12 @@
+'use client';
+
+import { useState } from 'react';
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { MapPin, Star, Clock, Heart } from 'lucide-react';
+import { useToast } from '@/components/ui/Toast';
 
 interface DestinationCardProps {
     destination: {
@@ -24,11 +30,50 @@ interface DestinationCardProps {
             name: string;
         };
     };
+    isFavorite?: boolean;
 }
 
-export function DestinationCard({ destination }: DestinationCardProps) {
+export function DestinationCard({ destination, isFavorite: initialFavorite = false }: DestinationCardProps) {
+    const { data: session } = useSession();
+    const router = useRouter();
+    const { showToast } = useToast();
+    const [isFavorite, setIsFavorite] = useState(initialFavorite);
+    const [isLoading, setIsLoading] = useState(false);
+
     const formatPrice = (price: number) => {
         return new Intl.NumberFormat('vi-VN').format(price);
+    };
+
+    const handleFavoriteClick = async (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        if (!session) {
+            showToast('info', 'Vui lòng đăng nhập để thêm yêu thích!');
+            router.push('/auth/login');
+            return;
+        }
+
+        setIsLoading(true);
+        try {
+            const res = await fetch('/api/favorites', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ destinationId: destination._id }),
+            });
+
+            if (res.ok) {
+                const newState = !isFavorite;
+                setIsFavorite(newState);
+                showToast('success', newState ? 'Đã thêm vào yêu thích!' : 'Đã xóa khỏi yêu thích!');
+            } else {
+                showToast('error', 'Có lỗi xảy ra!');
+            }
+        } catch {
+            showToast('error', 'Có lỗi xảy ra!');
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     return (
@@ -37,9 +82,10 @@ export function DestinationCard({ destination }: DestinationCardProps) {
                 {/* Image */}
                 <div className="relative h-48 overflow-hidden">
                     <Image
-                        src={destination.images[0] || '/images/placeholder.jpg'}
+                        src={destination.images[0] || '/images/placeholder.svg'}
                         alt={destination.name}
                         fill
+                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                         className="object-cover group-hover:scale-110 transition-transform duration-500"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
@@ -53,13 +99,14 @@ export function DestinationCard({ destination }: DestinationCardProps) {
 
                     {/* Favorite Button */}
                     <button
-                        className="absolute top-3 right-3 p-2 bg-white/90 backdrop-blur-sm rounded-full hover:bg-white transition-colors"
-                        onClick={(e) => {
-                            e.preventDefault();
-                            // TODO: Add to favorites
-                        }}
+                        className={`absolute top-3 right-3 p-2 backdrop-blur-sm rounded-full transition-all ${isFavorite
+                                ? 'bg-red-500 text-white'
+                                : 'bg-white/90 hover:bg-white text-gray-600 hover:text-red-500'
+                            } ${isLoading ? 'opacity-50' : ''}`}
+                        onClick={handleFavoriteClick}
+                        disabled={isLoading}
                     >
-                        <Heart className="w-4 h-4 text-gray-600 hover:text-red-500" />
+                        <Heart className={`w-4 h-4 ${isFavorite ? 'fill-white' : ''}`} />
                     </button>
 
                     {/* Rating */}

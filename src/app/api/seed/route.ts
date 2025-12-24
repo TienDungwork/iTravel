@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { connectDB } from '@/lib/db';
-import { Category, Province, Destination } from '@/models';
+import { Category, Province, Destination, User, Review } from '@/models';
 
 const seedCategories = [
     { name: 'Biển đảo', slug: 'bien-dao', icon: '🏖️', description: 'Du lịch biển, đảo', order: 1 },
@@ -24,6 +24,11 @@ const seedProvinces = [
     { name: 'Bình Thuận', code: 'BTH', region: 'Trung' as const },
 ];
 
+const seedUsers = [
+    { name: 'Admin', email: 'admin@itravel.vn', password: '123456', role: 'admin' as const },
+    { name: 'User Demo', email: 'user@itravel.vn', password: '123456', role: 'user' as const },
+];
+
 export async function POST() {
     try {
         await connectDB();
@@ -32,6 +37,8 @@ export async function POST() {
         await Category.deleteMany({});
         await Province.deleteMany({});
         await Destination.deleteMany({});
+        await User.deleteMany({});
+        await Review.deleteMany({});
 
         // Seed categories
         const categories = await Category.insertMany(seedCategories);
@@ -50,9 +57,12 @@ export async function POST() {
                 slug: 'vinh-ha-long',
                 categoryId: getCatId('bien-dao'),
                 provinceId: getProvId('QN'),
-                description: 'Vịnh Hạ Long là một vịnh nhỏ thuộc phần bờ Tây vịnh Bắc Bộ tại khu vực biển Đông Bắc Việt Nam, được UNESCO công nhận là Di sản thiên nhiên thế giới.',
+                description: 'Vịnh Hạ Long là một vịnh nhỏ thuộc phần bờ Tây vịnh Bắc Bộ tại khu vực biển Đông Bắc Việt Nam, được UNESCO công nhận là Di sản thiên nhiên thế giới. Vịnh có diện tích khoảng 1.553 km² bao gồm 1.969 hòn đảo lớn nhỏ, phần lớn là đảo đá vôi. Đây là điểm đến không thể bỏ qua khi du lịch Việt Nam.',
                 shortDescription: 'Di sản thiên nhiên thế giới với hàng nghìn đảo đá vôi',
-                images: ['/images/destinations/halong-1.jpg', '/images/destinations/halong-2.jpg'],
+                images: [
+                    'https://images.unsplash.com/photo-1528127269322-539801943592?w=800',
+                    'https://images.unsplash.com/photo-1573790387438-4da905039392?w=800'
+                ],
                 priceRange: { min: 1500000, max: 5000000, currency: 'VND' },
                 bestTime: ['Tháng 3', 'Tháng 4', 'Tháng 5', 'Tháng 9', 'Tháng 10'],
                 duration: '2-3 ngày',
@@ -67,9 +77,12 @@ export async function POST() {
                 slug: 'da-lat',
                 categoryId: getCatId('nui-rung'),
                 provinceId: getProvId('LD'),
-                description: 'Đà Lạt là thành phố trực thuộc tỉnh Lâm Đồng, nằm trên cao nguyên Lâm Viên. Được mệnh danh là "thành phố ngàn hoa" với khí hậu mát mẻ quanh năm.',
+                description: 'Đà Lạt là thành phố trực thuộc tỉnh Lâm Đồng, nằm trên cao nguyên Lâm Viên. Được mệnh danh là "thành phố ngàn hoa" với khí hậu mát mẻ quanh năm. Nơi đây có những đồi thông, hồ nước thơ mộng và kiến trúc Pháp cổ kính.',
                 shortDescription: 'Thành phố ngàn hoa với khí hậu mát mẻ',
-                images: ['/images/destinations/dalat-1.jpg'],
+                images: [
+                    'https://images.unsplash.com/photo-1583417319070-4a69db38a482?w=800',
+                    'https://images.unsplash.com/photo-1570366805577-f5e4cc5e0f72?w=800'
+                ],
                 priceRange: { min: 800000, max: 3000000, currency: 'VND' },
                 bestTime: ['Tháng 12', 'Tháng 1', 'Tháng 2', 'Tháng 3'],
                 duration: '3-4 ngày',
@@ -84,9 +97,12 @@ export async function POST() {
                 slug: 'phu-quoc',
                 categoryId: getCatId('bien-dao'),
                 provinceId: getProvId('KG'),
-                description: 'Phú Quốc là hòn đảo lớn nhất Việt Nam, nổi tiếng với bãi biển đẹp, nước biển trong xanh và hải sản tươi ngon.',
+                description: 'Phú Quốc là hòn đảo lớn nhất Việt Nam, nổi tiếng với bãi biển đẹp, nước biển trong xanh và hải sản tươi ngon. Đảo có hệ sinh thái đa dạng với rừng nguyên sinh và các bãi biển hoang sơ.',
                 shortDescription: 'Đảo ngọc với biển xanh cát trắng',
-                images: ['/images/destinations/phuquoc-1.jpg'],
+                images: [
+                    'https://images.unsplash.com/photo-1559592413-7cec4d0cae2b?w=800',
+                    'https://images.unsplash.com/photo-1540541338287-41700207dee6?w=800'
+                ],
                 priceRange: { min: 2000000, max: 8000000, currency: 'VND' },
                 bestTime: ['Tháng 11', 'Tháng 12', 'Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4'],
                 duration: '3-5 ngày',
@@ -101,9 +117,12 @@ export async function POST() {
                 slug: 'sapa',
                 categoryId: getCatId('nui-rung'),
                 provinceId: getProvId('LC'),
-                description: 'Sa Pa là thị xã vùng cao thuộc tỉnh Lào Cai, nổi tiếng với ruộng bậc thang, núi Fansipan và văn hóa dân tộc thiểu số đặc sắc.',
+                description: 'Sa Pa là thị xã vùng cao thuộc tỉnh Lào Cai, nổi tiếng với ruộng bậc thang, núi Fansipan và văn hóa dân tộc thiểu số đặc sắc. Khí hậu mát mẻ quanh năm, có khi có tuyết rơi vào mùa đông.',
                 shortDescription: 'Vùng núi với ruộng bậc thang tuyệt đẹp',
-                images: ['/images/destinations/sapa-1.jpg'],
+                images: [
+                    'https://images.unsplash.com/photo-1570366583862-f91883984fde?w=800',
+                    'https://images.unsplash.com/photo-1534008897995-27a23e859048?w=800'
+                ],
                 priceRange: { min: 1000000, max: 4000000, currency: 'VND' },
                 bestTime: ['Tháng 9', 'Tháng 10', 'Tháng 3', 'Tháng 4', 'Tháng 5'],
                 duration: '2-4 ngày',
@@ -118,9 +137,12 @@ export async function POST() {
                 slug: 'co-do-hue',
                 categoryId: getCatId('di-tich'),
                 provinceId: getProvId('TTH'),
-                description: 'Huế là cố đô của Việt Nam thời nhà Nguyễn, nổi tiếng với quần thể di tích cung đình, lăng tẩm và ẩm thực đặc sắc.',
+                description: 'Huế là cố đô của Việt Nam thời nhà Nguyễn, nổi tiếng với quần thể di tích cung đình, lăng tẩm và ẩm thực đặc sắc. Thành phố bên dòng sông Hương thơ mộng với những công trình kiến trúc cổ kính.',
                 shortDescription: 'Cố đô với di sản văn hóa thế giới',
-                images: ['/images/destinations/hue-1.jpg'],
+                images: [
+                    'https://images.unsplash.com/photo-1559592413-7cec4d0cae2b?w=800',
+                    'https://images.unsplash.com/photo-1583417319070-4a69db38a482?w=800'
+                ],
                 priceRange: { min: 600000, max: 2500000, currency: 'VND' },
                 bestTime: ['Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4'],
                 duration: '2-3 ngày',
@@ -135,9 +157,12 @@ export async function POST() {
                 slug: 'nha-trang',
                 categoryId: getCatId('bien-dao'),
                 provinceId: getProvId('KH'),
-                description: 'Nha Trang là thành phố biển nổi tiếng với bãi biển đẹp, hải sản tươi ngon và các hoạt động vui chơi giải trí đa dạng.',
+                description: 'Nha Trang là thành phố biển nổi tiếng với bãi biển đẹp, hải sản tươi ngon và các hoạt động vui chơi giải trí đa dạng. Đây là điểm đến lý tưởng cho kỳ nghỉ biển với khí hậu nắng ấm quanh năm.',
                 shortDescription: 'Thành phố biển với nhiều hoạt động giải trí',
-                images: ['/images/destinations/nhatrang-1.jpg'],
+                images: [
+                    'https://images.unsplash.com/photo-1540541338287-41700207dee6?w=800',
+                    'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800'
+                ],
                 priceRange: { min: 1200000, max: 4500000, currency: 'VND' },
                 bestTime: ['Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4', 'Tháng 5', 'Tháng 6', 'Tháng 7', 'Tháng 8'],
                 duration: '3-5 ngày',
@@ -151,6 +176,11 @@ export async function POST() {
 
         await Destination.insertMany(seedDestinations);
 
+        // Seed users
+        for (const userData of seedUsers) {
+            await User.create(userData);
+        }
+
         return NextResponse.json({
             success: true,
             message: 'Database seeded successfully',
@@ -158,6 +188,7 @@ export async function POST() {
                 categories: categories.length,
                 provinces: provinces.length,
                 destinations: seedDestinations.length,
+                users: seedUsers.length,
             },
         });
     } catch (error) {
@@ -168,3 +199,4 @@ export async function POST() {
         );
     }
 }
+
