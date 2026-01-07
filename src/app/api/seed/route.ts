@@ -3,12 +3,12 @@ import { connectDB } from '@/lib/db';
 import { Category, Province, Destination, User, Review } from '@/models';
 
 const seedCategories = [
-    { name: 'Biển đảo', slug: 'bien-dao', icon: '🏖️', description: 'Du lịch biển, đảo', order: 1 },
-    { name: 'Núi rừng', slug: 'nui-rung', icon: '🏔️', description: 'Du lịch núi, trekking', order: 2 },
-    { name: 'Tâm linh', slug: 'tam-linh', icon: '🛕', description: 'Du lịch tâm linh, chùa chiền', order: 3 },
-    { name: 'Di tích lịch sử', slug: 'di-tich', icon: '🏛️', description: 'Di tích, bảo tàng', order: 4 },
-    { name: 'Sinh thái', slug: 'sinh-thai', icon: '🌿', description: 'Du lịch sinh thái, nghỉ dưỡng', order: 5 },
-    { name: 'Đô thị', slug: 'do-thi', icon: '🏙️', description: 'Du lịch thành phố', order: 6 },
+    { name: 'Biển đảo', slug: 'bien-dao', icon: 'Waves', description: 'Du lịch biển, đảo', order: 1 },
+    { name: 'Núi rừng', slug: 'nui-rung', icon: 'Mountain', description: 'Du lịch núi, trekking', order: 2 },
+    { name: 'Tâm linh', slug: 'tam-linh', icon: 'Church', description: 'Du lịch tâm linh, chùa chiền', order: 3 },
+    { name: 'Di tích', slug: 'di-tich', icon: 'Landmark', description: 'Di tích, bảo tàng lịch sử', order: 4 },
+    { name: 'Sinh thái', slug: 'sinh-thai', icon: 'TreePine', description: 'Du lịch sinh thái, nghỉ dưỡng', order: 5 },
+    { name: 'Lãng mạn', slug: 'lang-man', icon: 'Heart', description: 'Du lịch lãng mạn, tuần trăng mật', order: 6 },
 ];
 
 const seedProvinces = [

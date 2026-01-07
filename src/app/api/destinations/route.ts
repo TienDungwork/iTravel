@@ -43,9 +43,12 @@ export async function GET(request: NextRequest) {
         }
 
         if (search) {
+            // Normalize search for better Vietnamese text matching
+            const searchRegex = { $regex: search.trim(), $options: 'i' };
             query.$or = [
-                { name: { $regex: search, $options: 'i' } },
-                { description: { $regex: search, $options: 'i' } },
+                { name: searchRegex },
+                { shortDescription: searchRegex },
+                { description: searchRegex },
             ];
         }
 

@@ -7,6 +7,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { MapPin, Star, Clock, Heart } from 'lucide-react';
 import { useToast } from '@/components/ui/Toast';
+import { CategoryIcon } from '@/components/ui/CategoryIcon';
 
 interface DestinationCardProps {
     destination: {
@@ -92,16 +93,17 @@ export function DestinationCard({ destination, isFavorite: initialFavorite = fal
 
                     {/* Category Badge */}
                     {destination.categoryId && (
-                        <span className="absolute top-3 left-3 px-3 py-1 bg-white/90 backdrop-blur-sm rounded-full text-xs font-medium text-gray-700">
-                            {destination.categoryId.icon} {destination.categoryId.name}
+                        <span className="absolute top-3 left-3 px-3 py-1.5 bg-white/90 backdrop-blur-sm rounded-full text-xs font-medium text-gray-700 flex items-center gap-1.5">
+                            <CategoryIcon iconName={destination.categoryId.icon} className="w-4 h-4 text-emerald-600" />
+                            {destination.categoryId.name}
                         </span>
                     )}
 
                     {/* Favorite Button */}
                     <button
                         className={`absolute top-3 right-3 p-2 backdrop-blur-sm rounded-full transition-all ${isFavorite
-                                ? 'bg-red-500 text-white'
-                                : 'bg-white/90 hover:bg-white text-gray-600 hover:text-red-500'
+                            ? 'bg-red-500 text-white'
+                            : 'bg-white/90 hover:bg-white text-gray-600 hover:text-red-500'
                             } ${isLoading ? 'opacity-50' : ''}`}
                         onClick={handleFavoriteClick}
                         disabled={isLoading}

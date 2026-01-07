@@ -4,6 +4,7 @@ import "./globals.css";
 import { Header, Footer } from "@/components/layout";
 import { AuthProvider } from "@/components/providers/AuthProvider";
 import { ToastProvider } from "@/components/ui/Toast";
+import { FloatingChat } from "@/components/chat";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -23,7 +24,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="vi">
-      <body className={`${inter.variable} font-sans antialiased`}>
+      <body className={`${inter.variable} font-sans antialiased`} suppressHydrationWarning>
         <AuthProvider>
           <ToastProvider>
             <Header />
@@ -31,9 +32,11 @@ export default function RootLayout({
               {children}
             </main>
             <Footer />
+            <FloatingChat />
           </ToastProvider>
         </AuthProvider>
       </body>
     </html>
   );
 }
+

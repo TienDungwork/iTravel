@@ -9,6 +9,7 @@ import {
     Plus, Edit, Trash2, Eye, Search, ChevronRight, Database, TrendingUp,
     Star, CheckCircle, XCircle, AlertCircle, X, Mail, Shield, Plane, Calendar, Image as ImageIcon
 } from 'lucide-react';
+import { CategoryIcon } from '@/components/ui/CategoryIcon';
 
 interface Destination {
     _id: string;
@@ -280,10 +281,39 @@ export default function AdminPage() {
         setFormData({
             name: '', description: '', shortDescription: '', categoryId: categories[0]?._id || '',
             provinceId: provinces[0]?._id || '', priceMin: 500000, priceMax: 2000000,
-            duration: '2-3 ngày', isFeatured: false, role: 'user', icon: '📍',
+            duration: '2-3 ngày', isFeatured: false, role: 'user', icon: 'Globe',
             images: ['', '', '']
         });
         setShowModal(true);
+    };
+
+    const openEditDestinationModal = async (dest: Destination) => {
+        try {
+            const res = await fetch(`/api/destinations/${dest.slug}`);
+            const data = await res.json();
+            if (data.success) {
+                const d = data.data;
+                setEditingItem(dest);
+                setModalType('destination');
+                setFormData({
+                    name: d.name || '',
+                    description: d.description || '',
+                    shortDescription: d.shortDescription || '',
+                    categoryId: d.categoryId?._id || categories[0]?._id || '',
+                    provinceId: d.provinceId?._id || provinces[0]?._id || '',
+                    priceMin: d.priceRange?.min || 500000,
+                    priceMax: d.priceRange?.max || 2000000,
+                    duration: d.duration || '2-3 ngày',
+                    isFeatured: d.isFeatured || false,
+                    role: 'user',
+                    icon: d.categoryId?.icon || 'Globe',
+                    images: d.images?.length ? [...d.images, '', '', ''].slice(0, 3) : ['', '', '']
+                });
+                setShowModal(true);
+            }
+        } catch (error) {
+            showMessage('error', 'Không thể tải thông tin địa điểm');
+        }
     };
 
     const handleSave = async () => {
@@ -443,7 +473,7 @@ export default function AdminPage() {
                                         {destinations.slice(0, 5).map(dest => (
                                             <div key={dest._id} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
                                                 <div className="flex items-center gap-3">
-                                                    <span className="text-2xl">{dest.categoryId?.icon || '📍'}</span>
+                                                    <CategoryIcon iconName={dest.categoryId?.icon || 'Globe'} className="w-6 h-6 text-emerald-600" />
                                                     <span className="font-medium">{dest.name}</span>
                                                 </div>
                                                 <div className="flex items-center gap-1 text-yellow-500">
@@ -517,7 +547,7 @@ export default function AdminPage() {
                                             <tr key={dest._id} className="border-t border-gray-100 hover:bg-gray-50">
                                                 <td className="py-4 px-6">
                                                     <div className="flex items-center gap-3">
-                                                        <span className="text-xl">{dest.categoryId?.icon || '📍'}</span>
+                                                        <CategoryIcon iconName={dest.categoryId?.icon || 'Globe'} className="w-6 h-6 text-emerald-600" />
                                                         <div>
                                                             <p className="font-medium">{dest.name}</p>
                                                             {dest.isFeatured && (
@@ -536,10 +566,13 @@ export default function AdminPage() {
                                                 <td className="py-4 px-6 text-center text-gray-600">{dest.viewCount}</td>
                                                 <td className="py-4 px-6">
                                                     <div className="flex items-center justify-center gap-2">
-                                                        <Link href={`/destinations/${dest.slug}`} className="p-2 hover:bg-gray-100 rounded-lg">
+                                                        <Link href={`/destinations/${dest.slug}`} className="p-2 hover:bg-gray-100 rounded-lg" title="Xem">
                                                             <Eye className="w-4 h-4 text-gray-500" />
                                                         </Link>
-                                                        <button onClick={() => handleDeleteDestination(dest._id)} className="p-2 hover:bg-red-50 rounded-lg">
+                                                        <button onClick={() => openEditDestinationModal(dest)} className="p-2 hover:bg-emerald-50 rounded-lg" title="Sửa">
+                                                            <Edit className="w-4 h-4 text-emerald-600" />
+                                                        </button>
+                                                        <button onClick={() => handleDeleteDestination(dest._id)} className="p-2 hover:bg-red-50 rounded-lg" title="Xóa">
                                                             <Trash2 className="w-4 h-4 text-red-500" />
                                                         </button>
                                                     </div>
@@ -656,7 +689,9 @@ export default function AdminPage() {
                                     <div key={cat._id} className="bg-white rounded-2xl p-6 shadow-sm">
                                         <div className="flex items-center justify-between mb-4">
                                             <div className="flex items-center gap-3">
-                                                <span className="text-3xl">{cat.icon}</span>
+                                                <div className="p-2 bg-emerald-100 rounded-xl">
+                                                    <CategoryIcon iconName={cat.icon} className="w-6 h-6 text-emerald-600" />
+                                                </div>
                                                 <h3 className="font-bold text-gray-900">{cat.name}</h3>
                                             </div>
                                         </div>

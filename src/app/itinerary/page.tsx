@@ -1,11 +1,15 @@
-'use client';
+  'use client';
 
 import { useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Sparkles, Wallet, Calendar, Users, Heart, Mountain, Building, Waves, Info, MapPin, Clock, ArrowRight, Check } from 'lucide-react';
+import {
+    Sparkles, Wallet, Calendar, Users, Heart, Mountain, Building, Waves,
+    Info, MapPin, Clock, ArrowRight, Check, Compass, UtensilsCrossed,
+    TreePine, Flower2
+} from 'lucide-react';
 import { useToast } from '@/components/ui/Toast';
 
 interface ItineraryItem {
@@ -21,6 +25,7 @@ interface ItineraryItem {
     };
     duration: string;
     notes: string;
+    estimatedCost?: number;
 }
 
 interface ItineraryResult {
@@ -32,10 +37,14 @@ interface ItineraryResult {
 }
 
 const preferenceOptions = [
-    { id: 'beach', label: 'Biển đảo', icon: Waves, color: 'bg-blue-100 text-blue-600 border-blue-200' },
-    { id: 'mountain', label: 'Núi rừng', icon: Mountain, color: 'bg-green-100 text-green-600 border-green-200' },
-    { id: 'culture', label: 'Văn hóa', icon: Building, color: 'bg-amber-100 text-amber-600 border-amber-200' },
-    { id: 'nature', label: 'Sinh thái', icon: Heart, color: 'bg-emerald-100 text-emerald-600 border-emerald-200' },
+    { id: 'beach', label: 'Biển đảo', icon: Waves, emoji: '🏖️', gradient: 'from-sky-400 to-blue-500', bg: 'bg-sky-50', text: 'text-sky-600' },
+    { id: 'mountain', label: 'Núi rừng', icon: Mountain, emoji: '🏔️', gradient: 'from-green-400 to-emerald-600', bg: 'bg-green-50', text: 'text-green-600' },
+    { id: 'culture', label: 'Văn hóa', icon: Building, emoji: '🏛️', gradient: 'from-amber-400 to-orange-500', bg: 'bg-amber-50', text: 'text-amber-600' },
+    { id: 'nature', label: 'Sinh thái', icon: TreePine, emoji: '🌿', gradient: 'from-teal-400 to-green-500', bg: 'bg-teal-50', text: 'text-teal-600' },
+    { id: 'adventure', label: 'Mạo hiểm', icon: Compass, emoji: '🧗', gradient: 'from-red-400 to-rose-500', bg: 'bg-red-50', text: 'text-red-600' },
+    { id: 'food', label: 'Ẩm thực', icon: UtensilsCrossed, emoji: '🍜', gradient: 'from-pink-400 to-fuchsia-500', bg: 'bg-pink-50', text: 'text-pink-600' },
+    { id: 'relax', label: 'Nghỉ dưỡng', icon: Flower2, emoji: '🧘', gradient: 'from-violet-400 to-purple-500', bg: 'bg-violet-50', text: 'text-violet-600' },
+    { id: 'romantic', label: 'Lãng mạn', icon: Heart, emoji: '💕', gradient: 'from-rose-400 to-pink-500', bg: 'bg-rose-50', text: 'text-rose-600' },
 ];
 
 export default function ItineraryPage() {
@@ -59,7 +68,19 @@ export default function ItineraryPage() {
     };
 
     const formatPrice = (price: number) => {
-        return new Intl.NumberFormat('vi-VN').format(price);
+        return new Intl.NumberFormat('vi-VN').format(Math.round(price));
+    };
+
+    // Calculate cost for a single item
+    const getItemCost = (item: ItineraryItem): number => {
+        if (item.estimatedCost) return item.estimatedCost;
+        return (item.destination.priceRange.min + item.destination.priceRange.max) / 2;
+    };
+
+    // Calculate real total from items
+    const calculateTotal = (): number => {
+        if (!result) return 0;
+        return result.items.reduce((sum, item) => sum + getItemCost(item), 0);
     };
 
     const handleGenerate = async () => {
@@ -132,13 +153,14 @@ export default function ItineraryPage() {
                     <div className="bg-white rounded-3xl p-8 shadow-xl animate-fade-in">
                         <div className="text-center mb-8">
                             <Wallet className="w-16 h-16 mx-auto text-emerald-600 mb-4" />
-                            <h2 className="text-2xl font-bold text-gray-900 mb-2">Ngân sách của bạn?</h2>
-                            <p className="text-gray-600">Tổng ngân sách cho chuyến đi (bao gồm vé, ăn ở)</p>
+                            <h2 className="text-2xl font-bold text-gray-900 mb-2">Ngân sách mỗi người?</h2>
+                            <p className="text-gray-600">Chi phí dự kiến cho 1 người (bao gồm vé, ăn ở, tham quan)</p>
                         </div>
 
                         <div className="max-w-md mx-auto">
                             <div className="text-center mb-6">
                                 <span className="text-4xl font-bold text-emerald-600">{formatPrice(budget)}đ</span>
+                                <span className="text-gray-500 text-lg ml-1">/người</span>
                             </div>
                             <input
                                 type="range"
@@ -152,6 +174,14 @@ export default function ItineraryPage() {
                             <div className="flex justify-between text-sm text-gray-500 mt-2">
                                 <span>1 triệu</span>
                                 <span>20 triệu</span>
+                            </div>
+
+                            {/* Total preview */}
+                            <div className="mt-6 p-4 bg-emerald-50 rounded-xl text-center">
+                                <p className="text-sm text-emerald-700">
+                                    Tổng cho <strong>{travelers} người</strong>:
+                                    <span className="font-bold text-emerald-600 ml-1">{formatPrice(budget * travelers)}đ</span>
+                                </p>
                             </div>
                         </div>
 
@@ -257,26 +287,81 @@ export default function ItineraryPage() {
                 {step === 4 && (
                     <div className="bg-white rounded-3xl p-8 shadow-xl animate-fade-in">
                         <div className="text-center mb-8">
-                            <Heart className="w-16 h-16 mx-auto text-emerald-600 mb-4" />
+                            <div className="relative inline-block">
+                                <div className="w-20 h-20 mx-auto bg-gradient-to-br from-emerald-400 to-teal-500 rounded-full flex items-center justify-center mb-4 shadow-lg">
+                                    <Sparkles className="w-10 h-10 text-white" />
+                                </div>
+                                <div className="absolute -right-1 -bottom-1 w-8 h-8 bg-yellow-400 rounded-full flex items-center justify-center text-lg animate-bounce">
+                                    ✨
+                                </div>
+                            </div>
                             <h2 className="text-2xl font-bold text-gray-900 mb-2">Bạn thích gì?</h2>
-                            <p className="text-gray-600">Chọn một hoặc nhiều sở thích (có thể bỏ qua)</p>
+                            <p className="text-gray-600">Chọn một hoặc nhiều sở thích để AI gợi ý địa điểm phù hợp</p>
                         </div>
 
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-                            {preferenceOptions.map((pref) => (
-                                <button
-                                    key={pref.id}
-                                    onClick={() => togglePreference(pref.id)}
-                                    className={`p-4 rounded-2xl border-2 transition-all ${preferences.includes(pref.id)
-                                        ? `${pref.color} border-current`
-                                        : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-gray-300'
-                                        }`}
-                                >
-                                    <pref.icon className="w-8 h-8 mx-auto mb-2" />
-                                    <span className="font-medium">{pref.label}</span>
-                                </button>
-                            ))}
+                            {preferenceOptions.map((pref, index) => {
+                                const isSelected = preferences.includes(pref.id);
+                                return (
+                                    <button
+                                        key={pref.id}
+                                        onClick={() => togglePreference(pref.id)}
+                                        className={`group relative p-5 rounded-2xl border-2 transition-all duration-300 transform hover:scale-105 ${isSelected
+                                            ? 'border-transparent shadow-lg scale-105'
+                                            : 'border-gray-200 hover:border-gray-300 bg-white hover:shadow-md'
+                                            }`}
+                                        style={{
+                                            animationDelay: `${index * 0.05}s`
+                                        }}
+                                    >
+                                        {/* Gradient Background when selected */}
+                                        {isSelected && (
+                                            <div className={`absolute inset-0 rounded-2xl bg-gradient-to-br ${pref.gradient} opacity-10`} />
+                                        )}
+
+                                        {/* Checkmark when selected */}
+                                        {isSelected && (
+                                            <div className={`absolute -top-2 -right-2 w-6 h-6 rounded-full bg-gradient-to-br ${pref.gradient} flex items-center justify-center shadow-md animate-scale-in`}>
+                                                <Check className="w-4 h-4 text-white" />
+                                            </div>
+                                        )}
+
+                                        {/* Content */}
+                                        <div className="relative z-10 flex flex-col items-center">
+                                            {/* Icon */}
+                                            <div className={`w-14 h-14 rounded-xl flex items-center justify-center mb-3 transition-all duration-300 ${isSelected
+                                                ? `bg-gradient-to-br ${pref.gradient} shadow-lg`
+                                                : `${pref.bg} group-hover:shadow-md`
+                                                }`}>
+                                                <pref.icon className={`w-7 h-7 transition-colors ${isSelected ? 'text-white' : pref.text}`} />
+                                            </div>
+
+                                            {/* Label */}
+                                            <span className={`font-semibold text-sm transition-colors ${isSelected ? 'text-gray-900' : 'text-gray-600 group-hover:text-gray-900'
+                                                }`}>
+                                                {pref.label}
+                                            </span>
+                                        </div>
+
+                                        {/* Hover glow effect */}
+                                        <div className={`absolute inset-0 rounded-2xl transition-opacity duration-300 ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-50'
+                                            }`} style={{
+                                                boxShadow: isSelected ? `0 8px 32px -4px var(--tw-shadow-color, rgba(16, 185, 129, 0.3))` : 'none'
+                                            }} />
+                                    </button>
+                                );
+                            })}
                         </div>
+
+                        {/* Selected count */}
+                        {preferences.length > 0 && (
+                            <div className="text-center mb-6 animate-fade-in">
+                                <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-50 text-emerald-700 font-medium">
+                                    <Check className="w-4 h-4" />
+                                    Đã chọn {preferences.length} sở thích
+                                </span>
+                            </div>
+                        )}
 
                         {error && (
                             <div className="text-center text-red-500 mb-4">{error}</div>
@@ -285,14 +370,14 @@ export default function ItineraryPage() {
                         <div className="flex justify-center gap-4">
                             <button
                                 onClick={() => setStep(3)}
-                                className="px-8 py-3 text-gray-600 hover:text-gray-900"
+                                className="px-8 py-3 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-full transition-all"
                             >
                                 Quay lại
                             </button>
                             <button
                                 onClick={handleGenerate}
                                 disabled={loading}
-                                className="flex items-center gap-2 bg-gradient-to-r from-emerald-600 to-teal-500 text-white px-8 py-3 rounded-full font-semibold hover:from-emerald-700 hover:to-teal-600 transition-all disabled:opacity-50"
+                                className="flex items-center gap-2 bg-gradient-to-r from-emerald-600 to-teal-500 text-white px-8 py-3 rounded-full font-semibold hover:from-emerald-700 hover:to-teal-600 transition-all disabled:opacity-50 shadow-lg hover:shadow-xl hover:-translate-y-0.5"
                             >
                                 {loading ? (
                                     <>
@@ -314,28 +399,51 @@ export default function ItineraryPage() {
                 {step === 5 && result && (
                     <div className="animate-fade-in">
                         {/* Header Card */}
-                        <div className="bg-gradient-to-r from-emerald-600 to-teal-600 rounded-3xl p-8 text-white mb-8">
-                            <div className="flex items-center gap-3 mb-4">
-                                <Sparkles className="w-8 h-8 text-yellow-300" />
-                                <h2 className="text-2xl font-bold">{result.title}</h2>
-                            </div>
-                            <p className="text-emerald-100 mb-6">Lịch trình được tạo bởi AI dựa trên sở thích và ngân sách của bạn</p>
+                        <div className="relative bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 rounded-3xl p-8 text-white mb-8 overflow-hidden animate-gradient" style={{ backgroundSize: '200% 200%' }}>
+                            {/* Decorative elements */}
+                            <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+                            <div className="absolute bottom-0 left-0 w-48 h-48 bg-emerald-400/20 rounded-full blur-2xl translate-y-1/2 -translate-x-1/2" />
 
-                            <div className="grid grid-cols-4 gap-4 p-4 bg-white/10 backdrop-blur-sm rounded-2xl">
-                                <div className="text-center">
-                                    <p className="text-sm text-emerald-100">Ngân sách</p>
+                            {/* Success Badge */}
+                            <div className="relative flex items-center gap-2 mb-4">
+                                <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full animate-pulse-glow">
+                                    <Sparkles className="w-5 h-5 text-yellow-300" />
+                                    <span className="text-sm font-medium">AI đã tạo xong lịch trình</span>
+                                </div>
+                            </div>
+
+                            <h2 className="relative text-2xl md:text-3xl font-bold mb-3">{result.title}</h2>
+                            <p className="relative text-emerald-100 mb-8 max-w-xl">
+                                Lịch trình hoàn hảo được tạo bởi AI dựa trên sở thích và ngân sách của bạn
+                            </p>
+
+                            <div className="relative grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+                                <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/10 hover:bg-white/20 transition-colors">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <Wallet className="w-4 h-4 text-emerald-200" />
+                                        <p className="text-xs text-emerald-200">Ngân sách</p>
+                                    </div>
                                     <p className="font-bold text-lg">{formatPrice(budget)}đ</p>
                                 </div>
-                                <div className="text-center border-x border-white/20">
-                                    <p className="text-sm text-emerald-100">Thời gian</p>
-                                    <p className="font-bold text-lg">{days} ngày {days - 1} đêm</p>
+                                <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/10 hover:bg-white/20 transition-colors">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <Calendar className="w-4 h-4 text-emerald-200" />
+                                        <p className="text-xs text-emerald-200">Thời gian</p>
+                                    </div>
+                                    <p className="font-bold text-lg">{days}N{days - 1}Đ</p>
                                 </div>
-                                <div className="text-center border-r border-white/20">
-                                    <p className="text-sm text-emerald-100">Số người</p>
+                                <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/10 hover:bg-white/20 transition-colors">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <Users className="w-4 h-4 text-emerald-200" />
+                                        <p className="text-xs text-emerald-200">Số người</p>
+                                    </div>
                                     <p className="font-bold text-lg">{travelers} người</p>
                                 </div>
-                                <div className="text-center">
-                                    <p className="text-sm text-emerald-100">Địa điểm</p>
+                                <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/10 hover:bg-white/20 transition-colors">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <MapPin className="w-4 h-4 text-emerald-200" />
+                                        <p className="text-xs text-emerald-200">Địa điểm</p>
+                                    </div>
                                     <p className="font-bold text-lg">{result.items.length} nơi</p>
                                 </div>
                             </div>
@@ -390,11 +498,12 @@ export default function ItineraryPage() {
                                                             </Link>
                                                             <p className="text-gray-500 mt-1">{item.destination.shortDescription}</p>
                                                         </div>
-                                                        <div className="text-right">
-                                                            <p className="text-sm text-gray-400">Chi phí ước tính</p>
-                                                            <p className="font-bold text-emerald-600">
-                                                                {formatPrice((item.destination.priceRange.min + item.destination.priceRange.max) / 2)}đ
+                                                        <div className="text-right flex-shrink-0">
+                                                            <p className="text-xs text-gray-400">Chi phí ước tính</p>
+                                                            <p className="font-bold text-emerald-600 text-lg">
+                                                                {formatPrice(getItemCost(item))}đ
                                                             </p>
+                                                            <p className="text-xs text-gray-400">/người</p>
                                                         </div>
                                                     </div>
 
@@ -447,39 +556,82 @@ export default function ItineraryPage() {
                         </div>
 
                         {/* Summary Card */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
                             {/* Cost Summary */}
-                            <div className="bg-white rounded-2xl p-6 shadow-lg">
-                                <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
-                                    <Wallet className="w-5 h-5 text-emerald-600" />
-                                    Ước tính chi phí
+                            <div className="bg-white rounded-3xl p-6 shadow-lg border border-gray-100">
+                                <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2 text-lg">
+                                    <Wallet className="w-6 h-6 text-emerald-600" />
+                                    Chi tiết chi phí
                                 </h3>
-                                <div className="space-y-3">
-                                    {result.items.map((item, index) => (
-                                        <div key={index} className="flex justify-between items-center py-2 border-b border-gray-100">
-                                            <span className="text-gray-600">Ngày {item.day}: {item.destination.name}</span>
-                                            <span className="font-semibold">{formatPrice((item.destination.priceRange.min + item.destination.priceRange.max) / 2)}đ</span>
-                                        </div>
-                                    ))}
-                                    <div className="flex justify-between items-center pt-3 text-lg">
-                                        <span className="font-bold text-gray-900">Tổng cộng</span>
-                                        <span className="font-bold text-emerald-600">{formatPrice(result.totalEstimatedCost)}đ</span>
-                                    </div>
-                                    <p className="text-sm text-gray-400 mt-2">* Chi phí có thể thay đổi tùy theo thời điểm và lựa chọn dịch vụ</p>
+                                <div className="space-y-2">
+                                    {result.items.map((item, index) => {
+                                        const itemCost = getItemCost(item);
+                                        return (
+                                            <div key={index} className="flex justify-between items-center py-2 border-b border-gray-100 last:border-0">
+                                                <div className="flex items-center gap-3">
+                                                    <span className="w-7 h-7 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 text-white flex items-center justify-center text-xs font-bold">
+                                                        {item.day}
+                                                    </span>
+                                                    <span className="text-gray-700 text-sm">{item.destination.name}</span>
+                                                </div>
+                                                <span className="font-semibold text-gray-900 text-sm">{formatPrice(itemCost)}đ</span>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
+
+                                {/* Total Section */}
+                                <div className="mt-4 pt-4 border-t-2 border-gray-200 space-y-3">
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-gray-600">Tổng/người ({days} ngày)</span>
+                                        <span className="font-bold text-gray-900 text-xl">{formatPrice(calculateTotal())}đ</span>
+                                    </div>
+                                    <div className="flex justify-between items-center bg-emerald-50 -mx-6 px-6 py-3">
+                                        <span className="font-bold text-emerald-800">Tổng cho {travelers} người</span>
+                                        <span className="font-bold text-emerald-600 text-2xl">{formatPrice(calculateTotal() * travelers)}đ</span>
+                                    </div>
+                                </div>
+
+                                {/* Budget Progress */}
+                                <div className="mt-4">
+                                    <div className="flex justify-between text-sm mb-1">
+                                        <span className="text-gray-500">Ngân sách: {formatPrice(budget)}đ</span>
+                                        <span className={`font-medium ${calculateTotal() * travelers > budget ? 'text-amber-600' : 'text-emerald-600'}`}>
+                                            {Math.round((calculateTotal() * travelers / budget) * 100)}%
+                                        </span>
+                                    </div>
+                                    <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                                        <div
+                                            className={`h-full rounded-full transition-all duration-500 ${calculateTotal() * travelers > budget
+                                                ? 'bg-gradient-to-r from-amber-400 to-red-500'
+                                                : 'bg-gradient-to-r from-emerald-400 to-teal-500'
+                                                }`}
+                                            style={{ width: `${Math.min((calculateTotal() * travelers / budget) * 100, 100)}%` }}
+                                        />
+                                    </div>
+                                </div>
+
+                                {calculateTotal() * travelers > budget && (
+                                    <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-700 text-sm">
+                                        ⚠️ Vượt ngân sách {formatPrice(calculateTotal() * travelers - budget)}đ
+                                    </div>
+                                )}
+                                <p className="text-xs text-gray-400 mt-3">* Đã bao gồm chi phí ăn uống, di chuyển và vé tham quan cơ bản</p>
                             </div>
 
                             {/* Tips */}
-                            <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl p-6 border border-amber-200">
-                                <h3 className="font-bold text-amber-800 mb-4 flex items-center gap-2">
-                                    <Info className="w-5 h-5" />
+                            <div className="bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 rounded-3xl p-6 border border-emerald-200">
+                                <h3 className="font-bold text-emerald-800 mb-4 flex items-center gap-2 text-lg">
+                                    <Sparkles className="w-6 h-6 text-emerald-500" />
                                     Mẹo du lịch từ AI
                                 </h3>
                                 <ul className="space-y-3">
                                     {result.tips.map((tip, index) => (
-                                        <li key={index} className="flex items-start gap-2 text-amber-700">
-                                            <span className="text-amber-500 font-bold">{index + 1}.</span>
-                                            <span>{tip}</span>
+                                        <li key={index} className="flex items-start gap-3 text-emerald-700">
+                                            <span className="w-6 h-6 rounded-full bg-emerald-200 text-emerald-700 flex items-center justify-center text-sm font-bold flex-shrink-0">
+                                                {index + 1}
+                                            </span>
+                                            <span className="pt-0.5">{tip}</span>
                                         </li>
                                     ))}
                                 </ul>
@@ -523,8 +675,8 @@ export default function ItineraryPage() {
                                 }}
                                 disabled={isSaved}
                                 className={`px-8 py-4 rounded-full font-semibold transition-all flex items-center justify-center gap-2 shadow-lg ${isSaved
-                                        ? 'bg-emerald-50 text-emerald-600 border-2 border-emerald-200'
-                                        : 'bg-gradient-to-r from-emerald-600 to-teal-500 text-white hover:from-emerald-700 hover:to-teal-600'
+                                    ? 'bg-emerald-50 text-emerald-600 border-2 border-emerald-200'
+                                    : 'bg-gradient-to-r from-emerald-600 to-teal-500 text-white hover:from-emerald-700 hover:to-teal-600'
                                     }`}
                             >
                                 {isSaved ? (
