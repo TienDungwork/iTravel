@@ -241,7 +241,7 @@ export function ReviewsSection({ destinationId, destinationName }: ReviewsSectio
                         <div key={review._id} className="border-b border-gray-100 pb-6 last:border-0">
                             <div className="flex items-start gap-4">
                                 <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
-                                    {review.userId.avatar ? (
+                                    {review.userId?.avatar ? (
                                         <img src={review.userId.avatar} alt="" className="w-12 h-12 rounded-full object-cover" />
                                     ) : (
                                         <User className="w-6 h-6 text-emerald-600" />
@@ -249,7 +249,7 @@ export function ReviewsSection({ destinationId, destinationName }: ReviewsSectio
                                 </div>
                                 <div className="flex-1">
                                     <div className="flex items-center gap-3 mb-1">
-                                        <span className="font-semibold text-gray-900">{review.userId.name}</span>
+                                        <span className="font-semibold text-gray-900">{review.userId?.name || 'Người dùng ẩn danh'}</span>
                                         <div className="flex items-center gap-1">
                                             {[...Array(5)].map((_, i) => (
                                                 <Star
