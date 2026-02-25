@@ -26,8 +26,9 @@ NEXTAUTH_URL=http://localhost:3000
 npm run dev
 ```
 
-### 5. Seed database
-Truy cập http://localhost:3000/admin → Click "Khởi tạo dữ liệu mẫu"
+### 5. Seed database (lần đầu / deploy máy mới)
+- **Cách 1:** Mở **http://localhost:3000/setup** → bấm "Khởi tạo dữ liệu mẫu" (không cần đăng nhập).
+- **Cách 2:** Sau khi đã có admin, vào http://localhost:3000/admin → Click "Seed Data".
 
 ## 📱 Demo Accounts
 
