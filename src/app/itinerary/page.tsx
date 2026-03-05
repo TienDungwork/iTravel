@@ -1,4 +1,4 @@
-  'use client';
+'use client';
 
 import { useState } from 'react';
 import { useSession } from 'next-auth/react';
@@ -595,25 +595,25 @@ export default function ItineraryPage() {
                                 {/* Budget Progress */}
                                 <div className="mt-4">
                                     <div className="flex justify-between text-sm mb-1">
-                                        <span className="text-gray-500">Ngân sách: {formatPrice(budget)}đ</span>
-                                        <span className={`font-medium ${calculateTotal() * travelers > budget ? 'text-amber-600' : 'text-emerald-600'}`}>
-                                            {Math.round((calculateTotal() * travelers / budget) * 100)}%
+                                        <span className="text-gray-500">Ngân sách/người: {formatPrice(budget)}đ</span>
+                                        <span className={`font-medium ${calculateTotal() > budget ? 'text-amber-600' : 'text-emerald-600'}`}>
+                                            {Math.round((calculateTotal() / budget) * 100)}%
                                         </span>
                                     </div>
                                     <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
                                         <div
-                                            className={`h-full rounded-full transition-all duration-500 ${calculateTotal() * travelers > budget
+                                            className={`h-full rounded-full transition-all duration-500 ${calculateTotal() > budget
                                                 ? 'bg-gradient-to-r from-amber-400 to-red-500'
                                                 : 'bg-gradient-to-r from-emerald-400 to-teal-500'
                                                 }`}
-                                            style={{ width: `${Math.min((calculateTotal() * travelers / budget) * 100, 100)}%` }}
+                                            style={{ width: `${Math.min((calculateTotal() / budget) * 100, 100)}%` }}
                                         />
                                     </div>
                                 </div>
 
-                                {calculateTotal() * travelers > budget && (
+                                {calculateTotal() > budget && (
                                     <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-700 text-sm">
-                                        ⚠️ Vượt ngân sách {formatPrice(calculateTotal() * travelers - budget)}đ
+                                        ⚠️ Vượt ngân sách/người {formatPrice(calculateTotal() - budget)}đ (tổng nhóm vượt {formatPrice((calculateTotal() - budget) * travelers)}đ)
                                     </div>
                                 )}
                                 <p className="text-xs text-gray-400 mt-3">* Đã bao gồm chi phí ăn uống, di chuyển và vé tham quan cơ bản</p>

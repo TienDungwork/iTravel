@@ -177,7 +177,9 @@ TRẢ VỀ JSON THUẦN (KHÔNG markdown):
             messages: [
                 {
                     role: 'system',
-                    content: 'Bạn là AI lập lịch trình du lịch chuyên nghiệp. Luôn trả lời bằng JSON thuần túy, không dùng markdown. Đảm bảo lịch trình thực tế, khả thi và trong ngân sách.'
+                    content: `Bạn là AI lập lịch trình du lịch chuyên nghiệp. Luôn trả lời bằng JSON thuần túy, không dùng markdown.
+QUAN TRỌNG: estimatedCost trong JSON là chi phí cho 1 NGƯỜI (per person). TỔNG tất cả estimatedCost KHÔNG ĐƯỢC vượt quá ngân sách MỖI NGƯỜI (${budget.toLocaleString('vi-VN')} VNĐ).
+Ví dụ: Nếu ngân sách 3,000,000đ/người, 3 ngày → mỗi ngày khoảng 1,000,000đ/người, TỔNG 3 ngày = 3,000,000đ/người.`
                 },
                 { role: 'user', content: prompt }
             ],
