@@ -8,11 +8,19 @@ interface ChatRequest {
     history: Array<{ role: 'user' | 'assistant'; content: string }>;
 }
 
-function getOpenAIClient() {
-    if (!process.env.OPENAI_API_KEY) {
-        throw new Error('OPENAI_API_KEY not configured');
+// Sử dụng Gemini API qua OpenAI-compatible endpoint
+function getAIClient() {
+    if (!process.env.GEMINI_API_KEY) {
+        throw new Error(
+            '❌ GEMINI_API_KEY chưa được cấu hình!\n' +
+            '   → Lấy key tại: https://aistudio.google.com/apikey\n' +
+            '   → Thêm vào .env.local: GEMINI_API_KEY=AIzaSy...'
+        );
     }
-    return new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    return new OpenAI({
+        apiKey: process.env.GEMINI_API_KEY,
+        baseURL: 'https://generativelanguage.googleapis.com/v1beta/openai/',
+    });
 }
 
 export async function POST(request: NextRequest) {
@@ -55,7 +63,7 @@ Quy tắc:
 - Nếu hỏi về giá, trả lời theo VNĐ
 - Khuyến khích người dùng sử dụng tính năng "AI Lịch trình" để lên kế hoạch chi tiết`;
 
-        const openai = getOpenAIClient();
+        const ai = getAIClient();
 
         // Build conversation history
         const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
@@ -67,8 +75,8 @@ Quy tắc:
             { role: 'user', content: message },
         ];
 
-        const completion = await openai.chat.completions.create({
-            model: 'gpt-3.5-turbo',
+        const completion = await ai.chat.completions.create({
+            model: 'gemini-2.5-flash',
             messages,
             temperature: 0.8,
             max_tokens: 500,
@@ -80,8 +88,31 @@ Quy tắc:
             success: true,
             data: { reply },
         });
-    } catch (error) {
+    } catch (error: unknown) {
         console.error('Chat API error:', error);
+
+        if (error instanceof OpenAI.APIError) {
+            if (error.status === 429) {
+                return NextResponse.json(
+                    {
+                        success: false,
+                        error: 'API OpenAI đang bị giới hạn (rate limit). Tài khoản có thể hết quota. Kiểm tra billing tại https://platform.openai.com/account/billing',
+                    },
+                    { status: 429 }
+                );
+            }
+            if (error.status === 401) {
+                return NextResponse.json(
+                    { success: false, error: 'API key OpenAI không hợp lệ. Kiểm tra OPENAI_API_KEY trong .env.local' },
+                    { status: 401 }
+                );
+            }
+            return NextResponse.json(
+                { success: false, error: `Lỗi OpenAI: ${error.message}` },
+                { status: error.status || 500 }
+            );
+        }
+
         return NextResponse.json(
             { success: false, error: 'Không thể xử lý tin nhắn' },
             { status: 500 }

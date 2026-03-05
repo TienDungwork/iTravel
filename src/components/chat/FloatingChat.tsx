@@ -39,7 +39,7 @@ export function FloatingChat() {
             if (data.success) {
                 setMessages(prev => [...prev, { role: 'assistant', content: data.data.reply }]);
             } else {
-                setMessages(prev => [...prev, { role: 'assistant', content: 'Xin lỗi, tôi không thể xử lý yêu cầu này. Vui lòng thử lại sau!' }]);
+                setMessages(prev => [...prev, { role: 'assistant', content: data.error || 'Xin lỗi, tôi không thể xử lý yêu cầu này. Vui lòng thử lại sau!' }]);
             }
         } catch (error) {
             setMessages(prev => [...prev, { role: 'assistant', content: 'Đã xảy ra lỗi kết nối. Vui lòng thử lại!' }]);
@@ -85,8 +85,8 @@ export function FloatingChat() {
                 <button
                     onClick={() => setIsOpen(!isOpen)}
                     className={`p-4 rounded-full shadow-xl transition-all hover:scale-110 ${isOpen
-                            ? 'bg-gray-800 text-white'
-                            : 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white animate-pulse'
+                        ? 'bg-gray-800 text-white'
+                        : 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white animate-pulse'
                         }`}
                 >
                     {isOpen ? <X className="w-6 h-6" /> : <MessageCircle className="w-6 h-6" />}
@@ -124,8 +124,8 @@ export function FloatingChat() {
                             >
                                 <div
                                     className={`max-w-[80%] p-3 rounded-2xl ${msg.role === 'user'
-                                            ? 'bg-emerald-500 text-white rounded-br-none'
-                                            : 'bg-white text-gray-800 shadow-sm rounded-bl-none border border-gray-100'
+                                        ? 'bg-emerald-500 text-white rounded-br-none'
+                                        : 'bg-white text-gray-800 shadow-sm rounded-bl-none border border-gray-100'
                                         }`}
                                 >
                                     <p className="text-sm whitespace-pre-wrap">{msg.content}</p>

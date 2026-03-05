@@ -10,12 +10,19 @@ interface GenerateRequest {
     preferences: string[];
 }
 
-// Lazy initialization to avoid build-time errors
-function getOpenAIClient() {
-    if (!process.env.OPENAI_API_KEY) {
-        throw new Error('OPENAI_API_KEY not configured');
+// Sử dụng Gemini API qua OpenAI-compatible endpoint
+function getAIClient() {
+    if (!process.env.GEMINI_API_KEY) {
+        throw new Error(
+            '❌ GEMINI_API_KEY chưa được cấu hình!\n' +
+            '   → Lấy key tại: https://aistudio.google.com/apikey\n' +
+            '   → Thêm vào .env.local: GEMINI_API_KEY=AIzaSy...'
+        );
     }
-    return new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    return new OpenAI({
+        apiKey: process.env.GEMINI_API_KEY,
+        baseURL: 'https://generativelanguage.googleapis.com/v1beta/openai/',
+    });
 }
 
 // Map preference IDs to category slugs for filtering
@@ -160,9 +167,9 @@ TRẢ VỀ JSON THUẦN (KHÔNG markdown):
   "tips": ["Mẹo quan trọng 1", "Mẹo 2", "Mẹo 3"]
 }`;
 
-        const openai = getOpenAIClient();
-        const completion = await openai.chat.completions.create({
-            model: 'gpt-3.5-turbo',
+        const ai = getAIClient();
+        const completion = await ai.chat.completions.create({
+            model: 'gemini-2.5-flash',
             messages: [
                 {
                     role: 'system',
@@ -261,8 +268,32 @@ TRẢ VỀ JSON THUẦN (KHÔNG markdown):
                 aiPowered: true,
             },
         });
-    } catch (error) {
+    } catch (error: unknown) {
         console.error('Itinerary generation error:', error);
+
+        // Xử lý lỗi từ OpenAI cụ thể
+        if (error instanceof OpenAI.APIError) {
+            if (error.status === 429) {
+                return NextResponse.json(
+                    {
+                        success: false,
+                        error: 'API OpenAI đang bị giới hạn (rate limit). Tài khoản có thể hết quota miễn phí. Vui lòng kiểm tra billing tại https://platform.openai.com/account/billing',
+                    },
+                    { status: 429 }
+                );
+            }
+            if (error.status === 401) {
+                return NextResponse.json(
+                    { success: false, error: 'API key OpenAI không hợp lệ. Kiểm tra lại OPENAI_API_KEY trong .env.local' },
+                    { status: 401 }
+                );
+            }
+            return NextResponse.json(
+                { success: false, error: `Lỗi OpenAI: ${error.message}` },
+                { status: error.status || 500 }
+            );
+        }
+
         return NextResponse.json(
             { success: false, error: 'Không thể tạo lịch trình. Vui lòng thử lại!' },
             { status: 500 }

@@ -1,6 +1,15 @@
 import mongoose from 'mongoose';
 
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/itravel';
+const MONGODB_URI = process.env.MONGODB_URI;
+
+if (!MONGODB_URI) {
+    throw new Error(
+        '❌ MONGODB_URI chưa được cấu hình!\n' +
+        '   → Copy .env.example thành .env.local và điền connection string.\n' +
+        '   → Local: mongodb://localhost:27017/itravel\n' +
+        '   → Atlas: mongodb+srv://user:pass@cluster.mongodb.net/itravel'
+    );
+}
 
 interface MongooseConnection {
     conn: typeof mongoose | null;
