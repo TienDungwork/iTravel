@@ -96,19 +96,19 @@ Quy tắc:
                 return NextResponse.json(
                     {
                         success: false,
-                        error: 'API OpenAI đang bị giới hạn (rate limit). Tài khoản có thể hết quota. Kiểm tra billing tại https://platform.openai.com/account/billing',
+                        error: 'API Gemini đang bị giới hạn (rate limit). Tài khoản có thể hết quota. Kiểm tra tại https://aistudio.google.com/apikey',
                     },
                     { status: 429 }
                 );
             }
             if (error.status === 401) {
                 return NextResponse.json(
-                    { success: false, error: 'API key OpenAI không hợp lệ. Kiểm tra OPENAI_API_KEY trong .env.local' },
+                    { success: false, error: 'API key Gemini không hợp lệ. Kiểm tra GEMINI_API_KEY trong .env.local' },
                     { status: 401 }
                 );
             }
             return NextResponse.json(
-                { success: false, error: `Lỗi OpenAI: ${error.message}` },
+                { success: false, error: `Lỗi Gemini: ${error.message}` },
                 { status: error.status || 500 }
             );
         }

@@ -128,11 +128,14 @@ export async function POST(request: NextRequest) {
         };
         const prefVi = preferences.map(p => prefMap[p] || p).join(', ') || 'đa dạng';
 
-        // Call ChatGPT with improved prompt
+        // Giới hạn ngân sách tối đa (cho phép vượt tối đa 3%)
+        const maxBudget = Math.round(budget * 1.03);
+
+        // Call Gemini with strict budget prompt
         const prompt = `Bạn là chuyên gia lập kế hoạch du lịch Việt Nam. Hãy tạo lịch trình chi tiết và THỰC TẾ.
 
 THÔNG TIN CHUYẾN ĐI:
-- Ngân sách MỖI NGƯỜI: ${budget.toLocaleString('vi-VN')} VNĐ
+- Ngân sách MỖI NGƯỜI: ${budget.toLocaleString('vi-VN')} VNĐ (TUYỆT ĐỐI KHÔNG VƯỢT QUÁ ${maxBudget.toLocaleString('vi-VN')} VNĐ)
 - Ngân sách mỗi người/ngày: ${Math.round(budgetPerPersonPerDay).toLocaleString('vi-VN')} VNĐ
 - Tổng ngân sách cho ${travelers} người: ${totalBudgetForGroup.toLocaleString('vi-VN')} VNĐ
 - Số ngày: ${days} ngày ${days - 1} đêm
@@ -142,12 +145,13 @@ THÔNG TIN CHUYẾN ĐI:
 DANH SÁCH ĐỊA ĐIỂM PHÙ HỢP (đã lọc theo sở thích và ngân sách):
 ${destinationsContext.map(d => `${d.index}. ${d.name} (${d.province}) - ${d.category} - Rating: ${d.rating}/5 - Giá: ${d.priceMin.toLocaleString()}-${d.priceMax.toLocaleString()}đ/người - ${d.description}`).join('\n')}
 
-NGUYÊN TẮC LẬP LỊCH TRÌNH:
+NGUYÊN TẮC LẬP LỊCH TRÌNH (BẮT BUỘC TUÂN THỦ):
 1. Mỗi ngày chỉ nên có 1 địa điểm chính để có thời gian khám phá kỹ
 2. Chọn địa điểm gần nhau về mặt địa lý để tiết kiệm thời gian di chuyển
-3. Chi phí ước tính cho MỖI NGƯỜI phải nằm trong ngân sách ${budget.toLocaleString('vi-VN')} VNĐ/người
-4. Ưu tiên địa điểm có rating cao
-5. Đa dạng trải nghiệm nếu có nhiều ngày
+3. ⚠️ QUAN TRỌNG NHẤT: TỔNG estimatedCost của TẤT CẢ các ngày PHẢI <= ${maxBudget.toLocaleString('vi-VN')} VNĐ. Nếu vượt ngân sách → chọn địa điểm rẻ hơn hoặc giảm chi phí mỗi ngày
+4. Mỗi ngày chi phí trung bình khoảng ${Math.round(budgetPerPersonPerDay).toLocaleString('vi-VN')} VNĐ/người/ngày
+5. Ưu tiên địa điểm có rating cao
+6. Đa dạng trải nghiệm nếu có nhiều ngày
 
 TRẢ VỀ JSON THUẦN (KHÔNG markdown):
 {
@@ -228,8 +232,18 @@ TRẢ VỀ JSON THUẦN (KHÔNG markdown):
             };
         });
 
-        // Validate total cost
-        const calculatedTotal = items.reduce((sum: number, item: { estimatedCost: number }) => sum + item.estimatedCost, 0);
+        // Validate & enforce budget cap — nếu AI trả vượt ngân sách thì scale giảm
+        let calculatedTotal = items.reduce((sum: number, item: { estimatedCost: number }) => sum + item.estimatedCost, 0);
+
+        if (calculatedTotal > maxBudget) {
+            // Scale down từng item theo tỷ lệ để tổng vừa đúng ngân sách
+            const scaleFactor = budget / calculatedTotal;
+            items.forEach((item: { estimatedCost: number }) => {
+                item.estimatedCost = Math.round(item.estimatedCost * scaleFactor);
+            });
+            calculatedTotal = items.reduce((sum: number, item: { estimatedCost: number }) => sum + item.estimatedCost, 0);
+        }
+
         const finalTotal = Math.min(calculatedTotal, budget);
 
         // Save itinerary
@@ -277,19 +291,19 @@ TRẢ VỀ JSON THUẦN (KHÔNG markdown):
                 return NextResponse.json(
                     {
                         success: false,
-                        error: 'API OpenAI đang bị giới hạn (rate limit). Tài khoản có thể hết quota miễn phí. Vui lòng kiểm tra billing tại https://platform.openai.com/account/billing',
+                        error: 'API Gemini đang bị giới hạn (rate limit). Tài khoản có thể hết quota. Kiểm tra tại https://aistudio.google.com/apikey',
                     },
                     { status: 429 }
                 );
             }
             if (error.status === 401) {
                 return NextResponse.json(
-                    { success: false, error: 'API key OpenAI không hợp lệ. Kiểm tra lại OPENAI_API_KEY trong .env.local' },
+                    { success: false, error: 'API key Gemini không hợp lệ. Kiểm tra lại GEMINI_API_KEY trong .env.local' },
                     { status: 401 }
                 );
             }
             return NextResponse.json(
-                { success: false, error: `Lỗi OpenAI: ${error.message}` },
+                { success: false, error: `Lỗi Gemini: ${error.message}` },
                 { status: error.status || 500 }
             );
         }
@@ -343,16 +357,20 @@ async function generateSmartFallbackItinerary(
 
         const estimatedCost = ((bestDest.priceRange?.min || 500000) + (bestDest.priceRange?.max || 2000000)) / 2;
 
+        // Bỏ qua nếu thêm vào sẽ vượt ngân sách — lấy địa điểm rẻ hơn
+        const remainingBudget = budget - totalCost;
+        const finalCost = Math.min(estimatedCost, remainingBudget);
+
         items.push({
             day,
             destinationId: bestDest._id,
             destination: bestDest,
             duration: bestDest.duration || '1 ngày',
             notes: `Khám phá ${bestDest.name} - ${bestDest.shortDescription || 'Địa điểm du lịch hấp dẫn'}`,
-            estimatedCost,
+            estimatedCost: finalCost,
         });
 
-        totalCost += estimatedCost;
+        totalCost += finalCost;
         usedDestinations.add(bestDest._id.toString());
     }
 
