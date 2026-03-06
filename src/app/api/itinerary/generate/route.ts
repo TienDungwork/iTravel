@@ -85,17 +85,28 @@ export async function POST(request: NextRequest) {
             filteredDestinations = destinations;
         }
 
-        // Sort by rating and filter by budget
+        // Sort by rating and filter by budget (mỗi địa điểm ~ 1 ngày, tổng N ngày phải <= budget)
+        const maxCostPerDestination = budgetPerPersonPerDay * 1.2; // Tối đa ~1.2 lần bình quân/ngày
         filteredDestinations = filteredDestinations
             .filter(d => {
                 const avgPrice = ((d.priceRange?.min || 500000) + (d.priceRange?.max || 2000000)) / 2;
-                return avgPrice <= budgetPerPersonPerDay * 1.5; // Allow 50% flexibility
+                return avgPrice <= maxCostPerDestination;
             })
             .sort((a, b) => (b.rating || 0) - (a.rating || 0));
 
-        // If still empty, use all destinations sorted by rating
+        // Nếu không còn địa điểm nào: nới lỏng ngân sách và ưu tiên địa điểm RẺ, không đưa hết mọi địa điểm đắt
         if (filteredDestinations.length === 0) {
-            filteredDestinations = destinations.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+            const relaxedMax = budgetPerPersonPerDay * 2.5;
+            filteredDestinations = destinations
+                .filter(d => {
+                    const avgPrice = ((d.priceRange?.min || 500000) + (d.priceRange?.max || 2000000)) / 2;
+                    return avgPrice <= relaxedMax;
+                })
+                .sort((a, b) => {
+                    const avgA = ((a.priceRange?.min || 500000) + (a.priceRange?.max || 2000000)) / 2;
+                    const avgB = ((b.priceRange?.min || 500000) + (b.priceRange?.max || 2000000)) / 2;
+                    return avgA - avgB || (b.rating || 0) - (a.rating || 0); // Rẻ trước, rồi rating
+                });
         }
 
         // Build destinations context for ChatGPT
@@ -146,12 +157,10 @@ DANH SÁCH ĐỊA ĐIỂM PHÙ HỢP (đã lọc theo sở thích và ngân sác
 ${destinationsContext.map(d => `${d.index}. ${d.name} (${d.province}) - ${d.category} - Rating: ${d.rating}/5 - Giá: ${d.priceMin.toLocaleString()}-${d.priceMax.toLocaleString()}đ/người - ${d.description}`).join('\n')}
 
 NGUYÊN TẮC LẬP LỊCH TRÌNH (BẮT BUỘC TUÂN THỦ):
-1. Mỗi ngày chỉ nên có 1 địa điểm chính để có thời gian khám phá kỹ
-2. Chọn địa điểm gần nhau về mặt địa lý để tiết kiệm thời gian di chuyển
-3. ⚠️ QUAN TRỌNG NHẤT: TỔNG estimatedCost của TẤT CẢ các ngày PHẢI <= ${maxBudget.toLocaleString('vi-VN')} VNĐ. Nếu vượt ngân sách → chọn địa điểm rẻ hơn hoặc giảm chi phí mỗi ngày
-4. Mỗi ngày chi phí trung bình khoảng ${Math.round(budgetPerPersonPerDay).toLocaleString('vi-VN')} VNĐ/người/ngày
-5. Ưu tiên địa điểm có rating cao
-6. Đa dạng trải nghiệm nếu có nhiều ngày
+1. Mỗi ngày chỉ 1 địa điểm chính. Ưu tiên các địa điểm CÙNG MIỀN hoặc GẦN NHAU (ví dụ: Bắc Bộ với Bắc Bộ, Nam Bộ với Nam Bộ) để tránh di chuyển xa trong vài ngày.
+2. ⚠️ QUAN TRỌNG NHẤT: TỔNG estimatedCost của TẤT CẢ các ngày PHẢI <= ${maxBudget.toLocaleString('vi-VN')} VNĐ/người. Mỗi ngày khoảng ${Math.round(budgetPerPersonPerDay).toLocaleString('vi-VN')} VNĐ — chọn địa điểm có giá trong danh sách phù hợp, không cộng dồn vượt ngân sách.
+3. estimatedCost mỗi item = chi phí ước tính cho 1 người tại địa điểm đó (ăn, ở, đi lại trong ngày). Dùng khoảng priceMin–priceMax/người có trong danh sách địa điểm.
+4. Ưu tiên rating cao và đa dạng trải nghiệm nếu có nhiều ngày.
 
 TRẢ VỀ JSON THUẦN (KHÔNG markdown):
 {
@@ -234,11 +243,16 @@ Ví dụ: Nếu ngân sách 3,000,000đ/người, 3 ngày → mỗi ngày khoả
             };
         });
 
-        // Validate & enforce budget cap — nếu AI trả vượt ngân sách thì scale giảm
+        // Nếu AI trả vượt ngân sách nhiều → dùng fallback (địa điểm thực sự trong ngân sách) thay vì scale số ảo
         let calculatedTotal = items.reduce((sum: number, item: { estimatedCost: number }) => sum + item.estimatedCost, 0);
 
         if (calculatedTotal > maxBudget) {
-            // Scale down từng item theo tỷ lệ để tổng vừa đúng ngân sách
+            const overRatio = calculatedTotal / budget;
+            if (overRatio > 1.2) {
+                // Vượt >20% → bỏ kết quả AI, tạo lại bằng thuật toán đảm bảo trong ngân sách
+                return generateSmartFallbackItinerary(filteredDestinations, budget, days, travelers, preferences);
+            }
+            // Vượt nhẹ (≤20%): scale để tổng đúng ngân sách
             const scaleFactor = budget / calculatedTotal;
             items.forEach((item: { estimatedCost: number }) => {
                 item.estimatedCost = Math.round(item.estimatedCost * scaleFactor);
@@ -248,18 +262,19 @@ Ví dụ: Nếu ngân sách 3,000,000đ/người, 3 ngày → mỗi ngày khoả
 
         const finalTotal = Math.min(calculatedTotal, budget);
 
-        // Save itinerary
+        // Save itinerary (lưu cả estimatedCost từng item để khi xem lại không hiển thị sai)
         const itinerary = await Itinerary.create({
             title: aiResult.title,
             budget,
             days,
             travelers,
             preferences,
-            items: items.map((i: { day: number; destinationId: string; duration: string; notes: string }) => ({
+            items: items.map((i: { day: number; destinationId: string; duration: string; notes: string; estimatedCost: number }) => ({
                 day: i.day,
                 destinationId: i.destinationId,
                 duration: i.duration,
                 notes: i.notes,
+                estimatedCost: i.estimatedCost,
             })),
             totalEstimatedCost: finalTotal,
             isAIGenerated: true,
@@ -387,6 +402,7 @@ async function generateSmartFallbackItinerary(
             destinationId: i.destinationId,
             duration: i.duration,
             notes: i.notes,
+            estimatedCost: i.estimatedCost,
         })),
         totalEstimatedCost: Math.min(totalCost, budget),
         isAIGenerated: false,

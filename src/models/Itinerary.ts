@@ -5,6 +5,7 @@ export interface IItineraryItem {
     destinationId: Types.ObjectId;
     duration: string;
     notes?: string;
+    estimatedCost?: number;
 }
 
 export interface IItinerary extends Document {
@@ -35,6 +36,7 @@ const ItinerarySchema = new Schema<IItinerary>(
                 destinationId: { type: Schema.Types.ObjectId, ref: 'Destination', required: true },
                 duration: { type: String },
                 notes: { type: String },
+                estimatedCost: { type: Number },
             },
         ],
         totalEstimatedCost: { type: Number, default: 0 },
